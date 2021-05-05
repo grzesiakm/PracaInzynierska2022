@@ -1,4 +1,5 @@
 Algorytm GHS (Gallahger):
+https://oudatalab.com/cs5113fa19/projects/project1.html?fbclid=IwAR3JinPzPhlnPdLorRcvVt0Yg_O042lNNBeINtS42akF1OD9jj6sih04tRQ
 
 Każdy fragment ma lvl - nierosnący integer z początkującą wartością 0.
 Każdy fragmnet o niezerowym lvl ma ID, które jest rdzeniem wierzchołka tego fragmentu (wybrany przy tworzeniu fragmentu)
