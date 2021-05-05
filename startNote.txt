@@ -4,17 +4,17 @@ Każdy fragment ma lvl - nierosnący integer z początkującą wartością 0.
 Każdy fragmnet o niezerowym lvl ma ID, które jest rdzeniem wierzchołka tego fragmentu (wybrany przy tworzeniu fragmentu)
 
 Każdy node może klasyfikować każdy ze swoich incydentnych wierzchołków jako:
-	I. Branch edges - te, które już zostały zakwalifikowane do bycia częścią MST. 
+    I. Branch edges - te, które już zostały zakwalifikowane do bycia częścią MST. 
    II. Rejected edges - te, które nie są częścią MST.
   III. Basic edges - jeszcze nie wiadomo czy będą w MST, czy nie.
 
 Każdy node po obudzniu dla fragmentu o niezerowym lvl musi:
-	I. Wybrać wierzchołek z najniższą wagą i oznaczyć go jako 'branch edge'.
+    I. Wybrać wierzchołek z najniższą wagą i oznaczyć go jako 'branch edge'.
    II. Wysłać wiadomość przez 'branch edge' by powiadomić node po drugiej stronie połączenia.
   III. Zaczekać na wiadomość od drugiej strony.
 
 Rodzaje wiadomości wysyłanych pomiędzy nodami:
-	I. Begin - od coordinatora do wszystkich nodów w systemie. (podaje sąsiadów i wagę do każdego z wiechołków)
+    I. Begin - od coordinatora do wszystkich nodów w systemie. (podaje sąsiadów i wagę do każdego z wiechołków)
    II. Connect - od node'a lub MST fragment aby połączyć się z drugim MST fragment (zawiera obecny fragment-lvl node'a); wysyłana tylko do wierzchołka z najniższą wagą poza MST fragment albo do wierzchołka z najniższą wagą, który dopiero został obudzony.
   III. Initiate - wysyłana do wszystkich zewnętrznych nodów poza MST aby zaktualizowały swoje wartości (oraz żeby nowe fragmenty wiedziały czy muszą inicjować poszukiwanie zewnętrznego wierzchołka o minimalnej wadze), kiedy dwa nody wyślą 'connect'do siebie, formując nowy rdzeń wierzchołka. (zawiera: fragment-lvl, fragment-ID, node-state)
    IV. Report - generowana w odpowiedzi na 'initiate' od wierzchołków rdzeni. (zawiera wagę najmniejszego zewnętrznego wierzchołka subdrzewa MST); Po wysłaniu 'report' dany node zmienia swój status z 'find' na 'found' - nie trzeba szukać wierzchołka o minimalnej wadze - został znaleziony.
@@ -48,8 +48,8 @@ gRPC: [Remote Procedure Call]
 	- Bidirectional stream RPC (klient i server wysyłą streamy niezależne od siebie [możliwe wysłanie streamu przez klienta i server w tym samym czasie], najbardziej dynamiczne i skomplikowane, możliwe scenariusze: kleint wysyła wszystkie wiadomości zanim odpowiedzi zostaną wysłane na którąkolwiek lub klient-server ping-ponging wiadomości.
 6. Wspirane synchroniczne i asynchroniczne procesowanie.
 7. Deadline i timeout: 
-	1. mówi ile czasu klient będzie czekał na odpowiedź serwera zanim rzuci błędem; server może weryfikować ile czasu mu zostało na odpowiedź.
-	2. DEADLINE_EXCEEDED error wyrzucony i RPC call przerwany.					
+	- mówi ile czasu klient będzie czekał na odpowiedź serwera zanim rzuci błędem; server może weryfikować ile czasu mu zostało na odpowiedź
+	- DEADLINE_EXCEEDED error wyrzucony i RPC call przerwany					
 8. Przerwanie RPC call: i klient i server mogą o tym decydować i przerwać pomiędzy streamami wiadomości
 9. Kanały - klient tak się łączy z serverem na podanym host i port; mogą być konfigurowane przez klienta.
 
