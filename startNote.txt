@@ -1,0 +1,55 @@
+Algorytm GHS (Gallahger):
+
+Każdy fragment ma lvl - nierosnący integer z początkującą wartością 0.
+Każdy fragmnet o niezerowym lvl ma ID, które jest rdzeniem wierzchołka tego fragmentu (wybrany przy tworzeniu fragmentu)
+
+Każdy node może klasyfikować każdy ze swoich incydentnych wierzchołków jako:
+	I. Branch edges - te, które już zostały zakwalifikowane do bycia częścią MST. 
+   II. Rejected edges - te, które nie są częścią MST.
+  III. Basic edges - jeszcze nie wiadomo czy będą w MST, czy nie.
+
+Każdy node po obudzniu dla fragmentu o niezerowym lvl musi:
+	I. Wybrać wierzchołek z najniższą wagą i oznaczyć go jako 'branch edge'.
+   II. Wysłać wiadomość przez 'branch edge' by powiadomić node po drugiej stronie połączenia.
+  III. Zaczekać na wiadomość od drugiej strony.
+
+Rodzaje wiadomości wysyłanych pomiędzy nodami:
+	I. Begin - od coordinatora do wszystkich nodów w systemie. (podaje sąsiadów i wagę do każdego z wiechołków)
+   II. Connect - od node'a lub MST fragment aby połączyć się z drugim MST fragment (zawiera obecny fragment-lvl node'a); wysyłana tylko do wierzchołka z najniższą wagą poza MST fragment albo do wierzchołka z najniższą wagą, który dopiero został obudzony.
+  III. Initiate - wysyłana do wszystkich zewnętrznych nodów poza MST aby zaktualizowały swoje wartości (oraz żeby nowe fragmenty wiedziały czy muszą inicjować poszukiwanie zewnętrznego wierzchołka o minimalnej wadze), kiedy dwa nody wyślą 'connect'do siebie, formując nowy rdzeń wierzchołka. (zawiera: fragment-lvl, fragment-ID, node-state)
+   IV. Report - generowana w odpowiedzi na 'initiate' od wierzchołków rdzeni. (zawiera wagę najmniejszego zewnętrznego wierzchołka subdrzewa MST); Po wysłaniu 'report' dany node zmienia swój status z 'find' na 'found' - nie trzeba szukać wierzchołka o minimalnej wadze - został znaleziony.
+    V. Change Core - po otrzymaiu 'report' wierzchołek rdzenia zna zewnętrzny wierzchołek o najmniejszej wadze i wysyła 'change core' po ścieżce od rdzenia do tego wierzchołka found i każdy node na tej ścieżce zmienia swój 'path-to-core' na ten znaleziony wierzchołek o najniższej wadze.
+   VI. Link-Test/Reply -  wysyłana przed nody w stanie 'find' po otrzymaniu 'initiate' do wierzchołków oznaczonych jako 'basic', zaczynając od tego z najmnieszą wagą. (zawiera fragment-lvl, fragment-ID) Odbiorcy sprawdzają swoje fragment-ID i jeśli jest taki sam -> REJECT do adresata; jeśli fragment-ID się różnią, a fragmnet-lvl odbiorcy jest taki sam lub wyższy niż adresata -> ACCEPT (ten node jest akceptowany jako zewnętrzny wierzchołek z adresata do MST fragment/node. Inazcej opóźnia odpowiedź dopóki odbiorca nie będzie miał odpowiedniego fragment-lvl. 
+
+
+1. Coordinator wybiera pojedynczy node do przyjęcia WakeUp message.
+2. Wybrany node po obudzeniu: wybiera wierzchołek z najniższą wagą, zmienia link-status z 'basic' na 'branch', ustawia fragment-level na 0, node-state na 'found'.
+3. Startowy node wysyła connect request do wierzchołka z najniższą wagą.
+4. Wierzchołek z najniższą wagą się budzi i wykonuje to samo co w 2.
+5. Wierzchołek z najniższą wagą i startowy ustawiają fragment-level na 1 oraz fragment-ID(waga rdzenia wierzchołka fragmentu MST) na 2.
+6. Każdy node obok rdzenia wierzchoła wysyła wysyła 'initiate message' do nodów na zewnątrz fragmentu MST. Ze stanu 'found' przechodzą na 'find' kiedy wiadomość zostaje wysłana. [connected]
+7. Każdy node w stanie 'find' wysyła próby 'link-test' do każdego wierzchołka w stanie 'basic', zaczynając od tego z najmniejszą wagą (wracamy do 2.) [asynchronicznie]
+8. Jeśli fragment-ID są różne, a fragment-lvl ten sam w obu nodach -> oba wysyłają odpowiedź ACCEPT i wysyłają swoje 'initial message' do nodów w ich fragmemncie, które zmieniają je na swoje 'basic edge' i znowu testują 'link-test'.
+9. Kiedy 'report message' dojdzie do wierzchołków rdzenia, które już zostały wymienione pomiedzy dwoma nodami -> wysyłają one 'change core message' po tej ścieżce.
+10. Gdy 'change core message' dojdzie do liścia z najniższą wagą -> ten node wysyła 'connect'. (gdy na tym samym wierzchołku inny node zrobi connect -> formują frament o wyższym lvl.  
+11. Jeśli fragment-ID są takie same -> wierzchołki wysyłają REJECT i ich połączenie jest usuwane z fragmentu MST.
+
+
+gRPC: [Remote Procedure Call]
+
+1. Można użyć dockera do tworzenia nodów i gRPC jest używane do komunikacji pomiędzy nodami - tutaj nody to serwery, a master jest klientem, który zleca zadania do wykonania.
+2. Przez proto file gRPC generuje server i stubs(klienci) (implementacja samodzielna).
+3. Do wysyłania wiadomości gRPC używa Protocol Buffers -> generują klasy data-access(zapewnia framework - do pobrania dla wybranego języka)
+4. Implementacja proto file -> schema dla wiadomości, generowanie przez kompilator protoc (aby móc używać serializowanych/deserializowanych danych w formacie opisanym w proto file).
+5. 3 typy procesowania: 
+	- Unary RPCs (najprostsze, klient wysyła jedną wiadomość do servera i dostaje jedą wiadomość w odpowiedzi)
+	- Server streams (klient wysyła jedną wiadomość, ale dostaje stream wiadomości od servera, które czyta aż do ostatniej)
+	- Client streams (klient wysyła stream wiadomości, a server wysyła jedną odpowiedź na serię poleceń od klienta)
+	- Bidirectional stream RPC (klient i server wysyłą streamy niezależne od siebie [możliwe wysłanie streamu przez klienta i server w tym samym czasie], najbardziej dynamiczne i skomplikowane, możliwe scenariusze: kleint wysyła wszystkie wiadomości zanim odpowiedzi zostaną wysłane na którąkolwiek lub klient-server ping-ponging wiadomości.
+6. Wspirane synchroniczne i asynchroniczne procesowanie.
+7. Deadline i timeout: 
+	1. mówi ile czasu klient będzie czekał na odpowiedź serwera zanim rzuci błędem; server może weryfikować ile czasu mu zostało na odpowiedź.
+	2. DEADLINE_EXCEEDED error wyrzucony i RPC call przerwany.					
+8. Przerwanie RPC call: i klient i server mogą o tym decydować i przerwać pomiędzy streamami wiadomości
+9. Kanały - klient tak się łączy z serverem na podanym host i port; mogą być konfigurowane przez klienta.
+
