@@ -9,16 +9,16 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Graph {
-    private final int[][] adjacencyMatrix = {{0, 2, 3, 0, 0},
-            {2, 0, 2, 0, 5},
-            {3, 2, 0, 1, 1},
-            {0, 0, 1, 0, 0},
-            {0, 5, 1, 0, 0}};
+    private final int[][] adjacencyMatrix = {{0, 2, 6, 0, 0, 3},
+            {2, 0, 0, 0, 9, 0},
+            {6, 0, 0, 5, 0, 0},
+            {0, 0, 5, 0, 4, 0},
+            {0, 9, 0, 4, 0, 1},
+            {3, 0, 0, 0, 1, 0}};
 
     int numberOfNodes = adjacencyMatrix[0].length;
 
-    //    ArrayList<BlockingQueue<Message>> msgFifo
-//            = new ArrayList<>();
+    ArrayList<BlockingQueue<Message>> msgFifo = new ArrayList<>();
     List<Boolean> stop = new ArrayList<>();
     BlockingQueue<Boolean> halt = new LinkedBlockingQueue<>();
 
