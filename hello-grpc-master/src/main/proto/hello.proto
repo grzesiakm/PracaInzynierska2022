@@ -30,7 +30,16 @@ message HelloReply {
 
 message NodeMessage {
   int32 from = 1;
-  string type = 2;
+  enum TYPE {
+    CONNECT = 0;
+    INITIATE = 1;
+    TEST = 2;
+    ACCEPT = 3;
+    REJECT = 4;
+    REPORT = 5;
+    CHANGE_CORE = 6;
+  }
+  TYPE type = 2;
   int32 lvl = 3;
   string nodeState = 4;
   int32 weight = 5;

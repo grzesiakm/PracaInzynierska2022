@@ -22,7 +22,11 @@ public class Node extends Actor {
     private Edge inBranch;
     private Edge testEdge;
     private int bestWeight;
-    private int testNode;
+    private boolean halt;
+
+    public List<Edge> getEdges() {
+        return edges;
+    }
 
     public Node(int port, List<Edge> edges) {
         super(port);
@@ -31,6 +35,7 @@ public class Node extends Actor {
         this.nodeState = NodeState.SLEEPING;
         this.findCount = Integer.MIN_VALUE;
         this.bestEdge = null;
+        this.halt = false;
     }
 
     public List<Edge> getOtherNeighbours(Edge neighbour) {
@@ -61,7 +66,7 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType("connect").setLvl(fragmentLvl).build());
+                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType(NodeMessage.TYPE.CONNECT).setLvl(fragmentLvl).build());
 
         try {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
@@ -70,14 +75,14 @@ public class Node extends Actor {
         }
     }
 
-    private void respondToConnect(Edge sender, int lvl) {
+    protected void respondToConnect(Edge sender, int lvl) {
         if (lvl < fragmentLvl) {
             edges.stream().filter(sender::equals).findAny().ifPresent(edge -> edge.setState(EdgeState.BRANCH));
             sendInitiate(sender, fragmentLvl, nodeState);
             if (nodeState == NodeState.FIND) findCount++;
         } else if (sender.getState() == EdgeState.BASIC) {
             //add to the message queue as a last element
-            enqueue(NodeMessage.newBuilder().setType("connect").setFrom(sender.getToFragmentId()).build());
+            enqueue(NodeMessage.newBuilder().setType(NodeMessage.TYPE.CONNECT).setFrom(sender.getToFragmentId()).build());
         } else {
             //send Initiate with this lvl+1, sender's id and FIND state
             sendInitiate(sender, fragmentLvl + 1, NodeState.FIND);
@@ -94,7 +99,7 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType("initiate").setLvl(fragmentLvl)
+                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType(NodeMessage.TYPE.INITIATE).setLvl(fragmentLvl)
                         .setNodeState(nodeState.toString()).build());
 
         try {
@@ -119,6 +124,8 @@ public class Node extends Actor {
         }
 
         if (nodeState == NodeState.FIND) testProcedure();
+
+        System.out.println("Node on port " + this.fragmentId + " responded to INITIATE");
     }
 
     public void testProcedure() {
@@ -131,7 +138,6 @@ public class Node extends Actor {
             testEdge = basicNeighbours.get(0);
             sendTest(testEdge, fragmentLvl);
         }
-
     }
 
     private void sendTest(Edge edge, int fragmentLvl) {
@@ -142,7 +148,7 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(edge.getToFragmentId()).setType("linkTestProbe")
+                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType(NodeMessage.TYPE.TEST)
                         .setLvl(fragmentLvl).build());
 
         try {
@@ -155,7 +161,7 @@ public class Node extends Actor {
     private void respondToTest(Edge sender, int lvl) {
         if (lvl > fragmentLvl)
             //add to the message queue as a last element
-            enqueue(NodeMessage.newBuilder().setType("linkTestProbe").setFrom(sender.getToFragmentId()).setLvl(lvl)
+            enqueue(NodeMessage.newBuilder().setType(NodeMessage.TYPE.TEST).setFrom(sender.getToFragmentId()).setLvl(lvl)
                     .build());
         else if (sender.getToFragmentId() != fragmentId) sendAccept(sender);
         else if (this.getBasicNeighbours().contains(sender)) {
@@ -165,6 +171,8 @@ public class Node extends Actor {
             if (testEdge != sender) sendReject(sender);
             else testProcedure();
         }
+
+        System.out.println("Node on port " + this.fragmentId + " responded to LINK-TEST-PROBE");
     }
 
     private void sendAccept(Edge edge) {
@@ -175,7 +183,7 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(edge.getToFragmentId()).setType("accept").build());
+                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType(NodeMessage.TYPE.ACCEPT).build());
 
         try {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
@@ -191,6 +199,8 @@ public class Node extends Actor {
             bestWeight = sender.getWeight();
         }
         reportProcedure();
+
+        System.out.println("Node on port " + this.fragmentId + " responded to ACCEPT");
     }
 
     private void sendReject(Edge edge) {
@@ -201,7 +211,7 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(edge.getToFragmentId()).setType("reject").build());
+                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType(NodeMessage.TYPE.REJECT).build());
 
         try {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
@@ -217,6 +227,8 @@ public class Node extends Actor {
             }
         }
         testProcedure();
+
+        System.out.println("Node on port " + this.fragmentId + " responded to REJECT");
     }
 
     public void reportProcedure() {
@@ -234,7 +246,7 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType("report")
+                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType(NodeMessage.TYPE.REPORT)
                         .setWeight(bestWeight).build());
 
         try {
@@ -255,9 +267,12 @@ public class Node extends Actor {
         }
         else if (nodeState.equals(NodeState.FIND))
             //add to the message queue as a last element
-            enqueue(NodeMessage.newBuilder().setType("report").setFrom(sender.getToFragmentId())
+            enqueue(NodeMessage.newBuilder().setType(NodeMessage.TYPE.REPORT).setFrom(sender.getToFragmentId())
                     .setWeight(sender.getWeight()).build());
         else if (sender.getWeight() > bestWeight) changeCoreProcedure();
+        else if (sender.getWeight() == bestWeight && bestWeight == Integer.MAX_VALUE) halt = true;
+
+        System.out.println("Node on port " + this.fragmentId + " responded to REPORT");
     }
 
     private void changeCoreProcedure() {
@@ -277,7 +292,7 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType("changeCore").build());
+                .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType(NodeMessage.TYPE.CHANGE_CORE).build());
 
         try {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
@@ -288,5 +303,19 @@ public class Node extends Actor {
 
     private void respondToChangeCore() {
         changeCoreProcedure();
+
+        System.out.println("Node on port " + this.fragmentId + " responded to CHANGE-CORE");
+    }
+
+    @Override
+    protected void OnMessageDequeued(NodeMessage nodeMessage) {
+
+        switch (nodeMessage.getType()) {
+            case CONNECT:
+                respondToConnect(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()), nodeMessage.getLvl());
+                break;
+            case INITIATE:
+                break;
+        }
     }
 }

@@ -15,10 +15,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
+public abstract class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
 
     private static final Logger logger = Logger.getLogger(Actor.class.getName());
     private final Queue<NodeMessage> queue;
+
+    public int getPort() {
+        return port;
+    }
+
     private final int port;
     private boolean alive;
     private Server server;
@@ -79,43 +84,14 @@ public class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
                 if (message == null)
                     continue;
 
-                logger.info("Actor on port [" + port + "] received a message " + message.getType() + " from actor on port [" + message.getFrom() + "]");
-
-                ManagedChannel channel = ManagedChannelBuilder
-                        .forTarget(buildTarget(message.getFrom()))
-                        .usePlaintext()
-                        .build();
-
-                Ok ok = MessageHandlerGrpc
-                        .newBlockingStub(channel)
-                        .handleMessage(NodeMessage.newBuilder().setFrom(this.port).setType(message.getType()).build());
-
-                channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
+                OnMessageDequeued(message);
             }
         } catch (Throwable thrown) {
             logger.log(Level.WARNING, "processMessageQueue failed", thrown);
         }
     }
 
-    /**
-     * use only for debug purpose
-     **/
-    public void sendMsg(String msg, int to) {
-        ManagedChannel channel = ManagedChannelBuilder
-                .forTarget(buildTarget(to))
-                .usePlaintext()
-                .build();
-
-        Ok ok = MessageHandlerGrpc
-                .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(this.port).setType(msg).build());
-
-        try {
-            channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
+    protected abstract void OnMessageDequeued(NodeMessage nodeMessage);
 
     protected void enqueue(NodeMessage nodeMessage) {
         synchronized (queue) {
@@ -123,7 +99,7 @@ public class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
         }
     }
 
-    protected NodeMessage dequeue() {
+    private NodeMessage dequeue() {
         synchronized (queue) {
             return queue.poll();
         }
