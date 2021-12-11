@@ -65,9 +65,9 @@ public class Node extends Actor {
         this.nodeState = FOUND;
         this.findCount = 0;
 
-        sendConnect(bestEdge, this.fragmentLvl);
-
         logger.info("Node on port " + this.fragmentId + " woke up");
+
+        sendConnect(bestEdge, this.fragmentLvl);
     }
 
     private void sendConnect(Edge minEdge, int fragmentLvl) {
