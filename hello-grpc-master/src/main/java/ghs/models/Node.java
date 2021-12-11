@@ -9,14 +9,20 @@ import io.grpc.ManagedChannelBuilder;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import static generated.NodeMessage.NODE_STATE.FOUND;
+import static generated.NodeMessage.NODE_STATE.FIND;
+import static generated.NodeMessage.NODE_STATE.SLEEPING;
 
 public class Node extends Actor {
 
+    private static final Logger logger = Logger.getLogger(Node.class.getName());
     private int fragmentId;
     private final List<Edge> edges;
     private int fragmentLvl;
-    private NodeState nodeState;
+    private NodeMessage.NODE_STATE nodeState;
     private int findCount;
     private Edge bestEdge;
     private Edge inBranch;
@@ -28,11 +34,15 @@ public class Node extends Actor {
         return edges;
     }
 
+    public boolean isHalt() {
+        return halt;
+    }
+
     public Node(int port, List<Edge> edges) {
         super(port);
         this.fragmentId = port;
         this.edges = edges;
-        this.nodeState = NodeState.SLEEPING;
+        this.nodeState = SLEEPING;
         this.findCount = Integer.MIN_VALUE;
         this.bestEdge = null;
         this.halt = false;
@@ -52,10 +62,12 @@ public class Node extends Actor {
         this.bestEdge = edges.stream().min(Comparator.comparing(Edge::getWeight)).orElseThrow();
         bestEdge.state = EdgeState.BRANCH;
         this.fragmentLvl = 0;
-        this.nodeState = NodeState.FOUND;
+        this.nodeState = FOUND;
         this.findCount = 0;
 
         sendConnect(bestEdge, this.fragmentLvl);
+
+        logger.info("Node on port " + this.fragmentId + " woke up");
     }
 
     private void sendConnect(Edge minEdge, int fragmentLvl) {
@@ -73,25 +85,27 @@ public class Node extends Actor {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        logger.info("Node on port " + this.fragmentId + " sent CONNECT");
     }
 
     protected void respondToConnect(Edge sender, int lvl) {
         if (lvl < fragmentLvl) {
             edges.stream().filter(sender::equals).findAny().ifPresent(edge -> edge.setState(EdgeState.BRANCH));
             sendInitiate(sender, fragmentLvl, nodeState);
-            if (nodeState == NodeState.FIND) findCount++;
+            if (nodeState == FIND) findCount++;
         } else if (sender.getState() == EdgeState.BASIC) {
             //add to the message queue as a last element
             enqueue(NodeMessage.newBuilder().setType(NodeMessage.TYPE.CONNECT).setFrom(sender.getToFragmentId()).build());
         } else {
             //send Initiate with this lvl+1, sender's id and FIND state
-            sendInitiate(sender, fragmentLvl + 1, NodeState.FIND);
+            sendInitiate(sender, fragmentLvl + 1, FIND);
         }
 
-        System.out.println("Node on port " + this.fragmentId + " responded to CONNECT");
+        logger.info("Node on port " + this.fragmentId + " responded to CONNECT");
     }
 
-    private void sendInitiate(Edge edge, int fragmentLvl, NodeState nodeState) {
+    private void sendInitiate(Edge edge, int fragmentLvl, NodeMessage.NODE_STATE nodeState) {
         ManagedChannel channel = ManagedChannelBuilder
                 .forTarget(buildTarget(edge.getToFragmentId()))
                 .usePlaintext()
@@ -100,16 +114,18 @@ public class Node extends Actor {
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
                 .handleMessage(NodeMessage.newBuilder().setFrom(fragmentId).setType(NodeMessage.TYPE.INITIATE).setLvl(fragmentLvl)
-                        .setNodeState(nodeState.toString()).build());
+                        .setNodeState(nodeState).build());
 
         try {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        logger.info("Node on port " + this.fragmentId + " sent INITIATE");
     }
 
-    private void respondToInitiate(Edge sender, int lvl, NodeState state) {
+    private void respondToInitiate(Edge sender, int lvl, NodeMessage.NODE_STATE state) {
         fragmentLvl = lvl;
         fragmentId = sender.getToFragmentId();
         nodeState = state;
@@ -120,12 +136,12 @@ public class Node extends Actor {
         List<Edge> otherEdges = getOtherNeighbours(sender);
         for (Edge e : otherEdges) {
             sendInitiate(e, fragmentLvl, nodeState);
-            if (nodeState == NodeState.FIND) findCount++;
+            if (nodeState == FIND) findCount++;
         }
 
-        if (nodeState == NodeState.FIND) testProcedure();
+        if (nodeState == FIND) testProcedure();
 
-        System.out.println("Node on port " + this.fragmentId + " responded to INITIATE");
+        logger.info("Node on port " + this.fragmentId + " responded to INITIATE");
     }
 
     public void testProcedure() {
@@ -156,6 +172,8 @@ public class Node extends Actor {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        logger.info("Node on port " + this.fragmentId + " sent TEST");
     }
 
     private void respondToTest(Edge sender, int lvl) {
@@ -172,7 +190,7 @@ public class Node extends Actor {
             else testProcedure();
         }
 
-        System.out.println("Node on port " + this.fragmentId + " responded to LINK-TEST-PROBE");
+        logger.info("Node on port " + this.fragmentId + " responded to TEST");
     }
 
     private void sendAccept(Edge edge) {
@@ -190,6 +208,8 @@ public class Node extends Actor {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        logger.info("Node on port " + this.fragmentId + " sent ACCEPT");
     }
 
     private void respondToAccept(Edge sender) {
@@ -200,7 +220,7 @@ public class Node extends Actor {
         }
         reportProcedure();
 
-        System.out.println("Node on port " + this.fragmentId + " responded to ACCEPT");
+        logger.info("Node on port " + this.fragmentId + " responded to ACCEPT");
     }
 
     private void sendReject(Edge edge) {
@@ -218,6 +238,8 @@ public class Node extends Actor {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        logger.info("Node on port " + this.fragmentId + " sent REJECT");
     }
 
     private void respondToReject(Edge sender) {
@@ -228,12 +250,12 @@ public class Node extends Actor {
         }
         testProcedure();
 
-        System.out.println("Node on port " + this.fragmentId + " responded to REJECT");
+        logger.info("Node on port " + this.fragmentId + " responded to REJECT");
     }
 
     public void reportProcedure() {
         if (findCount == 0 && testEdge == null) {
-            nodeState = NodeState.FOUND;
+            nodeState = FOUND;
             sendReport(inBranch, bestWeight);
         }
     }
@@ -254,9 +276,11 @@ public class Node extends Actor {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        logger.info("Node on port " + this.fragmentId + " sent REPORT");
     }
 
-    private void respondToReport(Edge sender){
+    private void respondToReport(Edge sender) {
         if (sender != inBranch) {
             findCount--;
             if (sender.getWeight() < bestWeight) {
@@ -264,15 +288,14 @@ public class Node extends Actor {
                 bestEdge = sender;
             }
             reportProcedure();
-        }
-        else if (nodeState.equals(NodeState.FIND))
+        } else if (nodeState.equals(FIND))
             //add to the message queue as a last element
             enqueue(NodeMessage.newBuilder().setType(NodeMessage.TYPE.REPORT).setFrom(sender.getToFragmentId())
                     .setWeight(sender.getWeight()).build());
         else if (sender.getWeight() > bestWeight) changeCoreProcedure();
         else if (sender.getWeight() == bestWeight && bestWeight == Integer.MAX_VALUE) halt = true;
 
-        System.out.println("Node on port " + this.fragmentId + " responded to REPORT");
+        logger.info("Node on port " + this.fragmentId + " responded to REPORT");
     }
 
     private void changeCoreProcedure() {
@@ -299,22 +322,39 @@ public class Node extends Actor {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        logger.info("Node on port " + this.fragmentId + " sent CHANGE_CORE");
     }
 
     private void respondToChangeCore() {
         changeCoreProcedure();
 
-        System.out.println("Node on port " + this.fragmentId + " responded to CHANGE-CORE");
+        logger.info("Node on port " + this.fragmentId + " responded to CHANGE_CORE");
     }
 
     @Override
     protected void OnMessageDequeued(NodeMessage nodeMessage) {
-
         switch (nodeMessage.getType()) {
             case CONNECT:
                 respondToConnect(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()), nodeMessage.getLvl());
                 break;
             case INITIATE:
+                respondToInitiate(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()), nodeMessage.getLvl(), nodeMessage.getNodeState());
+                break;
+            case TEST:
+                respondToTest(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()), nodeMessage.getLvl());
+                break;
+            case ACCEPT:
+                respondToAccept(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()));
+                break;
+            case REJECT:
+                respondToReject(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()));
+                break;
+            case REPORT:
+                respondToReport(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()));
+                break;
+            case CHANGE_CORE:
+                respondToChangeCore();
                 break;
         }
     }

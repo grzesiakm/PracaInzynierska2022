@@ -14,7 +14,7 @@ public class Graph {
 
     public Graph(int[][] adjacencyMatrix) {
         this.adjacencyMatrix = adjacencyMatrix;
-        nodes = createGraph(adjacencyMatrix);
+        nodes = createGraph();
     }
 
     @Override
@@ -33,23 +33,15 @@ public class Graph {
         return this.adjacencyMatrix.length;
     }
 
-    public static void main(String[] args) {
-        final int[][] adjacencyMatrix = {
-                {2, 0, 0, 0, 9, 0},
-                {6, 0, 0, 5, 0, 0},
-                {0, 2, 6, 0, 0, 3},
-                {0, 0, 5, 0, 4, 0},
-                {0, 9, 0, 4, 0, 1},
-                {3, 0, 0, 0, 1, 0}
-
-        };
-
-        Graph graph = new Graph(adjacencyMatrix);
-        System.out.println(graph);
+    private HashMap<Integer, Integer> getWeightedNeighbors(int vertex) {
+        HashMap<Integer, Integer> neighbors = new HashMap<>();
+        for (int i = 0; i < getNodeCount(); i++) {
+            if (adjacencyMatrix[vertex][i] != 0) neighbors.put(i, adjacencyMatrix[vertex][i]);
+        }
+        return neighbors;
     }
 
-
-    private List<Node> createGraph(int[][] adjacencyMatrix) {
+    private List<Node> createGraph() {
         List<Node> nodes = new ArrayList<>();
 
         for (int i = 0; i < getNodeCount(); i++) {
@@ -62,13 +54,34 @@ public class Graph {
         return nodes;
     }
 
-    private HashMap<Integer, Integer> getWeightedNeighbors(int vertex) {
-        HashMap<Integer, Integer> neighbors = new HashMap<>();
-        for (int i = 0; i < getNodeCount(); i++) {
-            if (adjacencyMatrix[vertex][i] != 0) {
-                neighbors.put(i, adjacencyMatrix[vertex][i]);
-            }
+    public static void main(String[] args) throws InterruptedException {
+        final int[][] adjacencyMatrix = {
+                {2, 0, 0, 0, 9, 0},
+                {6, 0, 0, 5, 0, 0},
+                {0, 2, 6, 0, 0, 3},
+                {0, 0, 5, 0, 4, 0},
+                {0, 9, 0, 4, 0, 1},
+                {3, 0, 0, 0, 1, 0}
+
+        };
+
+        Graph graph = new Graph(adjacencyMatrix);
+        System.out.println(graph);
+
+        for (Node node: graph.nodes) {
+            node.initialize();
         }
-        return neighbors;
+
+        Thread.sleep(10000);
+
+        for (Node node: graph.nodes) {
+            node.wakeup();
+        }
+
+        Thread.sleep(15000);
+
+        for (Node node: graph.nodes) {
+            if (node.isHalt()) node.finish();
+        }
     }
 }
