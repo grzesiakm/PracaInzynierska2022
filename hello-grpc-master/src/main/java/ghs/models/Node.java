@@ -25,6 +25,15 @@ public class Node extends Actor {
     private int fragmentLvl;
     private NodeMessage.NODE_STATE nodeState;
     private int findCount;
+
+    public Edge getBestEdge() {
+        return bestEdge;
+    }
+
+    public int getBestWeight() {
+        return bestWeight;
+    }
+
     private Edge bestEdge;
     private Edge inBranch;
     private Edge testEdge;
@@ -68,19 +77,22 @@ public class Node extends Actor {
 
         logger.info("Node on port " + this.fragmentId + " woke up");
 
-        sendConnect(bestEdge, this.fragmentLvl);
+        sendConnect();
     }
 
-    private void sendConnect(Edge minEdge, int fragmentLvl) {
+    private void sendConnect() {
         ManagedChannel channel = ManagedChannelBuilder
-                .forTarget(buildTarget(minEdge.getToFragmentId()))
+                .forTarget(buildTarget(this.bestEdge.getToFragmentId()))
                 .usePlaintext()
                 .build();
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(this.fragmentId).setType(NodeMessage.TYPE.CONNECT)
-                        .setLvl(fragmentLvl).build());
+                .handleMessage(NodeMessage.newBuilder()
+                        .setFromVertexId(this.fragmentId)
+                        .setType(NodeMessage.TYPE.CONNECT)
+                        .setEdgeId(this.bestEdge.getEdgeId())
+                        .setLvl(this.fragmentLvl).build());
 
         try {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
@@ -88,27 +100,27 @@ public class Node extends Actor {
             e.printStackTrace();
         }
 
-        logger.info("Node on port " + this.fragmentId + " sent CONNECT to " + minEdge.getToFragmentId());
+        logger.info("Node on port " + this.fragmentId + " sent CONNECT to " + this.bestEdge.getToFragmentId());
     }
 
-    protected void respondToConnect(Edge sender, int lvl) {
+    protected void respondToConnect(NodeMessage nodeMessage) {
         if (this.nodeState.equals(SLEEPING)){
             wakeup();
         }
-        if (lvl < this.fragmentLvl) {
-            this.edges.stream().filter(sender::equals).findAny().ifPresent(edge -> edge.setState(BRANCH));
-            sendInitiate(sender, this.fragmentLvl, this.nodeState);
+        var messageEdge = this.edges.stream().filter(edge -> nodeMessage.getEdgeId() == edge.getEdgeId()).findAny().orElseThrow();
+        if (nodeMessage.getLvl() < this.fragmentLvl) {
+            messageEdge.setState(BRANCH);
+            sendInitiate(messageEdge, this.fragmentLvl, this.nodeState);
             if (this.nodeState == FIND) this.findCount++;
-        } else if (sender.getState().equals(BASIC)) {
+        } else if (messageEdge.getState() == BASIC) {
             //add to the message queue as a last element
-            enqueue(NodeMessage.newBuilder().setType(NodeMessage.TYPE.CONNECT).setFrom(sender.getToFragmentId())
-                    .build());
+            enqueue(nodeMessage);
         } else {
             //send Initiate with this lvl+1, sender's id and FIND state
-            sendInitiate(sender, fragmentLvl + 1, FIND);
+            sendInitiate(messageEdge, fragmentLvl + 1, FIND);
         }
 
-        logger.info("Node on port " + this.fragmentId + " responded to CONNECT to " + sender);
+        logger.info("Node on port " + this.fragmentId + " responded to CONNECT to " + messageEdge);
     }
 
     private void sendInitiate(Edge edge, int fragmentLvl, NodeMessage.NODE_STATE nodeState) {
@@ -119,8 +131,12 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(this.fragmentId).setType(NodeMessage.TYPE.INITIATE)
-                        .setLvl(fragmentLvl).setNodeState(nodeState).build());
+                .handleMessage(NodeMessage.newBuilder()
+                        .setFromVertexId(this.fragmentId)
+                        .setType(NodeMessage.TYPE.INITIATE)
+                        .setEdgeId(edge.getEdgeId())
+                        .setLvl(fragmentLvl)
+                        .setNodeState(nodeState).build());
 
         try {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
@@ -131,21 +147,22 @@ public class Node extends Actor {
         logger.info("Node on port " + this.fragmentId + " sent INITIATE");
     }
 
-    private void respondToInitiate(Edge sender, int lvl, int id, NodeMessage.NODE_STATE state) {
-        this.fragmentLvl = lvl;
-        this.fragmentId = id;
-        this.nodeState = state;
-        this.inBranch = sender;
+    private void respondToInitiate(NodeMessage nodeMessage) {
+        this.fragmentLvl = nodeMessage.getLvl();
+        this.fragmentId = nodeMessage.getFromVertexId();
+        this.nodeState = nodeMessage.getNodeState();
+        var messageEdge = this.edges.stream().filter(edge -> nodeMessage.getEdgeId() == edge.getEdgeId()).findAny().orElseThrow();
+        this.inBranch = messageEdge;
         this.bestEdge = null;
         this.bestWeight = Integer.MAX_VALUE;
 
-        List<Edge> otherEdges = getOtherBranchNeighbours(sender);
+        List<Edge> otherEdges = getOtherBranchNeighbours(messageEdge);
         for (Edge e : otherEdges) {
-            sendInitiate(e, lvl, state);
-            if (state.equals(FIND)) findCount++;
+            sendInitiate(e, nodeMessage.getLvl(), nodeMessage.getNodeState());
+            if (nodeMessage.getNodeState() == FIND) findCount++;
         }
 
-        if (state.equals(FIND)) testProcedure();
+        if (nodeMessage.getNodeState() == FIND) testProcedure();
 
         logger.info("Node on port " + this.fragmentId + " responded to INITIATE");
     }
@@ -170,7 +187,10 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(this.fragmentId).setType(NodeMessage.TYPE.TEST)
+                .handleMessage(NodeMessage.newBuilder()
+                        .setFromVertexId(this.fragmentId)
+                        .setEdgeId(edge.getEdgeId())
+                        .setType(NodeMessage.TYPE.TEST)
                         .setLvl(fragmentLvl).build());
 
         try {
@@ -182,20 +202,24 @@ public class Node extends Actor {
         logger.info("Node on port " + this.fragmentId + " sent TEST");
     }
 
-    private void respondToTest(Edge sender, int lvl) {
+    private void respondToTest(NodeMessage nodeMessage) {
+        var messageEdge = this.edges.stream().filter(edge -> nodeMessage.getEdgeId() == edge.getEdgeId()).findAny().orElseThrow();
         if (this.nodeState.equals(SLEEPING)){
             wakeup();
         }
-        if (lvl > fragmentLvl)
+        if (nodeMessage.getLvl() > this.fragmentLvl)
             //add to the message queue as a last element
-            enqueue(NodeMessage.newBuilder().setType(NodeMessage.TYPE.TEST).setFrom(sender.getToFragmentId()).setLvl(lvl)
-                    .build());
-        else if (sender.getToFragmentId() != fragmentId) sendAccept(sender);
-        else if (this.getBasicNeighbours().contains(sender)) {
-            for (Edge edge : edges) {
-                if (edge.equals(sender)) edge.setState(REJECTED);
+            enqueue(nodeMessage);
+        else if (nodeMessage.getFromVertexId() != fragmentId) {
+            sendAccept(messageEdge);
+        }
+        else if (messageEdge.getState() == BASIC) {
+            messageEdge.setState(REJECTED);
+            //todo
+            //testEdge nullcheck
+            if (testEdge.getEdgeId() != messageEdge.getEdgeId()) {
+                sendReject(messageEdge);
             }
-            if (testEdge != sender) sendReject(sender);
             else testProcedure();
         }
 
@@ -210,7 +234,11 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(this.fragmentId).setType(NodeMessage.TYPE.ACCEPT).build());
+                .handleMessage(NodeMessage.newBuilder()
+                        .setFromVertexId(this.fragmentId)
+                        .setType(NodeMessage.TYPE.ACCEPT)
+                        .setEdgeId(edge.getEdgeId())
+                        .build());
 
         try {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
@@ -221,11 +249,12 @@ public class Node extends Actor {
         logger.info("Node on port " + this.fragmentId + " sent ACCEPT");
     }
 
-    private void respondToAccept(Edge sender) {
+    private void respondToAccept(NodeMessage nodeMessage) {
+        var messageEdge = this.edges.stream().filter(edge -> nodeMessage.getEdgeId() == edge.getEdgeId()).findAny().orElseThrow();
         this.testEdge = null;
-        if (sender.getWeight() < this.bestWeight) {
-            this.bestEdge = sender;
-            this.bestWeight = sender.getWeight();
+        if (nodeMessage.getWeight() < this.bestWeight) {
+            this.bestEdge = messageEdge;
+            this.bestWeight = nodeMessage.getWeight();
         }
         reportProcedure();
 
@@ -240,7 +269,11 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(this.fragmentId).setType(NodeMessage.TYPE.REJECT).build());
+                .handleMessage(NodeMessage.newBuilder()
+                        .setFromVertexId(this.fragmentId)
+                        .setType(NodeMessage.TYPE.REJECT)
+                        .setEdgeId(edge.getEdgeId())
+                        .build());
 
         try {
             channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
@@ -251,13 +284,13 @@ public class Node extends Actor {
         logger.info("Node on port " + this.fragmentId + " sent REJECT");
     }
 
-    private void respondToReject(Edge sender) {
-        if (this.getBasicNeighbours().contains(sender)) {
-            for (Edge edge : edges) {
-                if (edge.equals(sender)) edge.setState(REJECTED);
-            }
+    private void respondToReject(NodeMessage nodeMessage) {
+        var messageEdge = this.edges.stream().filter(edge -> nodeMessage.getEdgeId() == edge.getEdgeId()).findAny().orElseThrow();
+
+        if (messageEdge.getState() == BASIC) {
+            messageEdge.setState(REJECTED);
+            testProcedure();
         }
-        testProcedure();
 
         logger.info("Node on port " + this.fragmentId + " responded to REJECT");
     }
@@ -277,7 +310,10 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(this.fragmentId).setType(NodeMessage.TYPE.REPORT)
+                .handleMessage(NodeMessage.newBuilder()
+                        .setFromVertexId(this.fragmentId)
+                        .setType(NodeMessage.TYPE.REPORT)
+                        .setEdgeId(inBranch.getEdgeId())
                         .setWeight(bestWeight).build());
 
         try {
@@ -289,20 +325,25 @@ public class Node extends Actor {
         logger.info("Node on port " + this.fragmentId + " sent REPORT");
     }
 
-    private void respondToReport(Edge sender) {
-        if (sender != this.inBranch) {
+    private void respondToReport(NodeMessage nodeMessage) {
+        var messageEdge = this.edges.stream().filter(edge -> nodeMessage.getEdgeId() == edge.getEdgeId()).findAny().orElseThrow();
+        if (messageEdge.getEdgeId() != this.inBranch.getEdgeId()) {
             this.findCount--;
-            if (sender.getWeight() < this.bestWeight) {
-                this.bestWeight = sender.getWeight();
-                this.bestEdge = sender;
+            if (nodeMessage.getWeight() < this.bestWeight) {
+                this.bestWeight = nodeMessage.getWeight();
+                this.bestEdge = messageEdge;
             }
             reportProcedure();
-        } else if (this.nodeState.equals(FIND))
+        } else if (this.nodeState == FIND)
             //add to the message queue as a last element
-            enqueue(NodeMessage.newBuilder().setType(NodeMessage.TYPE.REPORT).setFrom(sender.getToFragmentId())
-                    .setWeight(sender.getWeight()).build());
-        else if (sender.getWeight() > this.bestWeight) changeCoreProcedure();
-        else if (sender.getWeight() == this.bestWeight && this.bestWeight == Integer.MAX_VALUE) this.halt = true;
+            enqueue(nodeMessage);
+        else if (nodeMessage.getWeight() > this.bestWeight) {
+            changeCoreProcedure();
+        }
+        else if (nodeMessage.getWeight() == this.bestWeight && this.bestWeight == Integer.MAX_VALUE) {
+            this.halt = true;
+            this.finish();
+        }
 
         logger.info("Node on port " + this.fragmentId + " responded to REPORT");
     }
@@ -311,7 +352,7 @@ public class Node extends Actor {
         if (this.bestEdge.getState().equals(BRANCH))
             sendChangeCore(this.bestEdge);
         else {
-            sendConnect(this.bestEdge, this.fragmentLvl);
+            sendConnect();
             this.edges.stream().filter(bestEdge::equals).findAny().ifPresent(edge -> edge.setState(BRANCH));
         }
     }
@@ -324,7 +365,7 @@ public class Node extends Actor {
 
         Ok ok = MessageHandlerGrpc
                 .newBlockingStub(channel)
-                .handleMessage(NodeMessage.newBuilder().setFrom(this.fragmentId).setType(NodeMessage.TYPE.CHANGE_CORE)
+                .handleMessage(NodeMessage.newBuilder().setFromVertexId(this.fragmentId).setType(NodeMessage.TYPE.CHANGE_CORE)
                         .build());
 
         try {
@@ -346,23 +387,22 @@ public class Node extends Actor {
     protected void OnMessageDequeued(NodeMessage nodeMessage) {
         switch (nodeMessage.getType()) {
             case CONNECT:
-                respondToConnect(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()), nodeMessage.getLvl());
+                respondToConnect(nodeMessage);
                 break;
             case INITIATE:
-                respondToInitiate(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()), nodeMessage.getLvl(),
-                        nodeMessage.getFrom(), nodeMessage.getNodeState());
+                respondToInitiate(nodeMessage);
                 break;
             case TEST:
-                respondToTest(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()), nodeMessage.getLvl());
+                respondToTest(nodeMessage);
                 break;
             case ACCEPT:
-                respondToAccept(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()));
+                respondToAccept(nodeMessage);
                 break;
             case REJECT:
-                respondToReject(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()));
+                respondToReject(nodeMessage);
                 break;
             case REPORT:
-                respondToReport(new Edge(nodeMessage.getWeight(), nodeMessage.getFrom()));
+                respondToReport(nodeMessage);
                 break;
             case CHANGE_CORE:
                 respondToChangeCore();

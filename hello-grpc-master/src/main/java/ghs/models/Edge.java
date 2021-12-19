@@ -4,6 +4,7 @@ public class Edge {
 
     private final int weight;
     private final int toFragmentId;
+    private final int edgeId;
 
     public EdgeState state;
 
@@ -15,11 +16,16 @@ public class Edge {
                 ", state=" + state +
                 '}';
     }
-
+//Todo dodaj edgeId
     public Edge(int weight, int toFragmentId) {
         this.weight = weight;
         this.toFragmentId = toFragmentId;
+        this.edgeId = weight;
         this.state = EdgeState.BASIC;
+    }
+
+    public int getEdgeId() {
+        return edgeId;
     }
 
     public int getWeight() {

@@ -72,14 +72,12 @@ public class Graph {
             node.initialize();
         }
 
-        Thread.sleep(10000);
-
         graph.nodes.get(1).wakeup();
 
-        Thread.sleep(15000);
+        Thread.sleep(30000);
 
         for (Node node : graph.nodes) {
-            if (node.isHalt()) node.finish();
+            System.out.println(node.getPort() + " with bestEdge = " + node.getBestEdge().toString());
         }
     }
 }

@@ -29,7 +29,7 @@ message HelloReply {
 }
 
 message NodeMessage {
-  int32 from = 1;
+  int32 fromVertexId = 1;
   enum TYPE {
     CONNECT = 0;
     INITIATE = 1;
@@ -48,6 +48,7 @@ message NodeMessage {
   }
   NODE_STATE nodeState = 4;
   int32 weight = 5;
+  int32 edgeId = 6;
 }
 
 message Ok {}
