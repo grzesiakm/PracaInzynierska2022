@@ -7,6 +7,15 @@ public class Edge {
 
     public EdgeState state;
 
+    @Override
+    public String toString() {
+        return "Edge{" +
+                "weight=" + weight +
+                ", toFragmentId=" + toFragmentId +
+                ", state=" + state +
+                '}';
+    }
+
     public Edge(int weight, int toFragmentId) {
         this.weight = weight;
         this.toFragmentId = toFragmentId;

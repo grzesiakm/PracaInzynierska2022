@@ -2,6 +2,7 @@ package ghs;
 
 import ghs.models.Edge;
 import ghs.models.Node;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -56,31 +57,28 @@ public class Graph {
 
     public static void main(String[] args) throws InterruptedException {
         final int[][] adjacencyMatrix = {
+                {0, 2, 6, 0, 0, 3},
                 {2, 0, 0, 0, 9, 0},
                 {6, 0, 0, 5, 0, 0},
-                {0, 2, 6, 0, 0, 3},
                 {0, 0, 5, 0, 4, 0},
                 {0, 9, 0, 4, 0, 1},
                 {3, 0, 0, 0, 1, 0}
-
         };
 
         Graph graph = new Graph(adjacencyMatrix);
         System.out.println(graph);
 
-        for (Node node: graph.nodes) {
+        for (Node node : graph.nodes) {
             node.initialize();
         }
 
         Thread.sleep(10000);
 
-        for (Node node: graph.nodes) {
-            node.wakeup();
-        }
+        graph.nodes.get(1).wakeup();
 
         Thread.sleep(15000);
 
-        for (Node node: graph.nodes) {
+        for (Node node : graph.nodes) {
             if (node.isHalt()) node.finish();
         }
     }
