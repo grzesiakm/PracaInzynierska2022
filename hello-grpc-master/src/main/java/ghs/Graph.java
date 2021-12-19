@@ -56,13 +56,12 @@ public class Graph {
 
     public static void main(String[] args) throws InterruptedException {
         final int[][] adjacencyMatrix = {
+                {0, 2, 6, 0, 0, 3},
                 {2, 0, 0, 0, 9, 0},
                 {6, 0, 0, 5, 0, 0},
-                {0, 2, 6, 0, 0, 3},
                 {0, 0, 5, 0, 4, 0},
                 {0, 9, 0, 4, 0, 1},
                 {3, 0, 0, 0, 1, 0}
-
         };
 
         Graph graph = new Graph(adjacencyMatrix);
