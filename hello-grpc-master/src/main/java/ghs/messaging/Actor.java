@@ -78,7 +78,7 @@ public abstract class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
     private void processMessageQueue() {
         try {
             while (alive) {
-                Thread.sleep(1000);
+                Thread.sleep(100);
                 NodeMessage message = dequeue();
 
                 if (message == null)

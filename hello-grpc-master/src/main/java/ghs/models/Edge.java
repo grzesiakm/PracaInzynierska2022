@@ -3,7 +3,7 @@ package ghs.models;
 public class Edge {
 
     private final int weight;
-    private final int toFragmentId;
+    private final int toNodeId;
     private final int edgeId;
 
     public EdgeState state;
@@ -12,14 +12,14 @@ public class Edge {
     public String toString() {
         return "Edge{" +
                 "weight=" + weight +
-                ", toFragmentId=" + toFragmentId +
+                ", toNodeId=" + toNodeId +
                 ", state=" + state +
                 '}';
     }
 //Todo dodaj edgeId
-    public Edge(int weight, int toFragmentId) {
+    public Edge(int weight, int toNodeId) {
         this.weight = weight;
-        this.toFragmentId = toFragmentId;
+        this.toNodeId = toNodeId;
         this.edgeId = weight;
         this.state = EdgeState.BASIC;
     }
@@ -32,8 +32,8 @@ public class Edge {
         return weight;
     }
 
-    public int getToFragmentId() {
-        return toFragmentId;
+    public int getToNodeId() {
+        return toNodeId;
     }
 
     public EdgeState getState() {

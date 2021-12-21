@@ -24,7 +24,7 @@ public class Graph {
         for (Node node : nodes) {
             builder.append(node.getPort())
                     .append(" with neighbours: ")
-                    .append(node.getEdges().stream().map(e -> e.getToFragmentId() + " " + e.getWeight()).collect(Collectors.toList()))
+                    .append(node.getEdges().stream().map(e -> e.getToNodeId() + " " + e.getWeight()).collect(Collectors.toList()))
                     .append("\n");
         }
         return builder.toString();
@@ -72,12 +72,12 @@ public class Graph {
             node.initialize();
         }
 
-        graph.nodes.get(1).wakeup();
+        graph.nodes.get(4).wakeup();
 
-        Thread.sleep(30000);
+        Thread.sleep(15000);
 
         for (Node node : graph.nodes) {
-            System.out.println(node.getPort() + " with bestEdge = " + node.getBestEdge().toString());
+            System.out.println(node.getPort() + " with bestEdge = " + node.getBestEdge());
         }
     }
 }
