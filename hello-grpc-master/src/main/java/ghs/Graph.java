@@ -48,9 +48,9 @@ public class Graph {
         for (int i = 0; i < getNodeCount(); i++) {
             HashMap<Integer, Integer> map = getWeightedNeighbors(i);
             List<Edge> neighbours = map.entrySet().stream()
-                    .map(entry -> new Edge(entry.getValue(), 50050 + entry.getKey()))
+                    .map(entry -> new Edge(entry.getValue(), entry.getKey()))
                     .collect(Collectors.toList());
-            nodes.add(new Node(i + 50050, neighbours));
+            nodes.add(new Node(i, neighbours));
         }
         return nodes;
     }
@@ -69,15 +69,27 @@ public class Graph {
         System.out.println(graph);
 
         for (Node node : graph.nodes) {
+            StringBuilder string = new StringBuilder("NodeId ")
+                    .append(node.getNodeId())
+                    .append(" with neighbours ")
+                    .append(node.getEdges());
+            System.out.println(string);
+        }
+
+        for (Node node : graph.nodes) {
             node.initialize();
         }
 
-        graph.nodes.get(4).wakeup();
+        for (Node node : graph.nodes) {
+            node.wakeup();
+        }
 
-        Thread.sleep(15000);
+//        graph.nodes.get(0).wakeup();
+//
+        Thread.sleep(20000);
 
         for (Node node : graph.nodes) {
-            System.out.println(node.getPort() + " with bestEdge = " + node.getBestEdge());
+            System.out.println(node.getPort() + " with branch edges = " + node.getBranchEdges());
         }
     }
 }

@@ -93,6 +93,26 @@ public abstract class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
 
     protected abstract void OnMessageDequeued(NodeMessage nodeMessage);
 
+    protected void sendMessage(NodeMessage nodeMessage) {
+        int port = mapToPort(nodeMessage);
+        ManagedChannel channel = ManagedChannelBuilder
+                .forTarget(buildTarget(port))
+                .usePlaintext()
+                .build();
+
+        Ok ok = MessageHandlerGrpc
+                .newBlockingStub(channel)
+                .handleMessage(nodeMessage);
+
+        try {
+            channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        logger.info("Node on port " + this.port + " sent " + nodeMessage.getType() + " to " + port);
+    }
+
     protected void enqueue(NodeMessage nodeMessage) {
         synchronized (queue) {
             queue.add(nodeMessage);
@@ -103,6 +123,10 @@ public abstract class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
         synchronized (queue) {
             return queue.poll();
         }
+    }
+
+    private int mapToPort(NodeMessage nodeMessage) {
+        return nodeMessage.getToNodeId() + 50050;
     }
 
     protected String buildTarget(int port) {
