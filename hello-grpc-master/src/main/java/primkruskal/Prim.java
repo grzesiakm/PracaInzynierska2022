@@ -1,6 +1,9 @@
 package primkruskal;
 
 
+import com.google.common.base.Stopwatch;
+import java.io.IOException;
+
 class Prim {
     public static int V = 6;
 
@@ -37,11 +40,10 @@ class Prim {
       1) Create a set mstSet that keeps track of vertices already included in MST.
       2) Assign a key value to all vertices in the input graph. Initialize all key values as INFINITE.
          Assign key value as 0 for the first vertex so that it is picked first.
-      3) While mstSet doesn’t include all vertices
+      3) While mstSet does not include all vertices
         a) Pick a vertex u which is not there in mstSet and has minimum key value.
         b) Include u to mstSet.
         c) Update key value of all adjacent vertices of u.
-           To update the key values, iterate through all adjacent vertices.
            For every adjacent vertex v, if weight of edge u-v is less than the previous key value of v,
            update the key value as weight of u-v.
     */
@@ -82,14 +84,17 @@ class Prim {
         printMinimumSpanningTree(graph, parent);
     }
 
-    public static void main(String[] args) {
-        int[][] graph = {{0, 2, 6, 0, 0, 3},
-                {2, 0, 0, 0, 9, 0},
-                {6, 0, 0, 5, 0, 0},
-                {0, 0, 5, 0, 4, 0},
-                {0, 9, 0, 4, 0, 1},
-                {3, 0, 0, 0, 1, 0}};
+    public static void main(String[] args) throws IOException {
+        int[][] graph = ReadMatrix.readGraphFromFile("matrix6.txt");
+//                {{0, 2, 6, 0, 0, 3},
+//                {2, 0, 0, 0, 9, 0},
+//                {6, 0, 0, 5, 0, 0},
+//                {0, 0, 5, 0, 4, 0},
+//                {0, 9, 0, 4, 0, 1},
+//                {3, 0, 0, 0, 1, 0}};
 
+        Stopwatch timer = Stopwatch.createStarted();
         primMST(graph);
+        System.out.println("Algorithm took: " + timer.stop());
     }
 }

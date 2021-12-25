@@ -78,20 +78,40 @@ public abstract class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
     private void processMessageQueue() {
         try {
             while (alive) {
-                Thread.sleep(2000);
+                Thread.sleep(100);
                 NodeMessage message = dequeue();
 
                 if (message == null)
                     continue;
 
-                OnMessageDequeued(message);
+                onMessageDequeued(message);
             }
         } catch (Throwable thrown) {
             logger.log(Level.WARNING, "processMessageQueue failed", thrown);
         }
     }
 
-    protected abstract void OnMessageDequeued(NodeMessage nodeMessage);
+    protected abstract void onMessageDequeued(NodeMessage nodeMessage);
+
+    protected void sendMessage(NodeMessage nodeMessage) {
+        int port = mapToPort(nodeMessage.getToNodeId());
+        ManagedChannel channel = ManagedChannelBuilder
+                .forTarget(buildTarget(port))
+                .usePlaintext()
+                .build();
+
+        Ok ok = MessageHandlerGrpc
+                .newBlockingStub(channel)
+                .handleMessage(nodeMessage);
+
+        try {
+            channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        logger.info("Node on port " + this.port + " sent " + nodeMessage.getType() + " to " + port);
+    }
 
     protected void enqueue(NodeMessage nodeMessage) {
         synchronized (queue) {
@@ -103,6 +123,10 @@ public abstract class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
         synchronized (queue) {
             return queue.poll();
         }
+    }
+
+    protected int mapToPort(int nodeId) {
+        return nodeId + 50050;
     }
 
     protected String buildTarget(int port) {

@@ -1,16 +1,23 @@
 package ghs;
 
+import com.google.common.base.Stopwatch;
 import ghs.models.Edge;
 import ghs.models.Node;
+import primkruskal.ReadMatrix;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 
 public class Graph {
     private final List<Node> nodes;
     private final int[][] adjacencyMatrix;
+    private static final BlockingQueue<Boolean> stop = new LinkedBlockingQueue<>();
 
     public Graph(int[][] adjacencyMatrix) {
         this.adjacencyMatrix = adjacencyMatrix;
@@ -23,7 +30,7 @@ public class Graph {
         for (Node node : nodes) {
             builder.append(node.getPort())
                     .append(" with neighbours: ")
-                    .append(node.getEdges().stream().map(e -> e.getToFragmentId() + " " + e.getWeight()).collect(Collectors.toList()))
+                    .append(node.getEdges().stream().map(e -> e.getToNodeId() + " " + e.getWeight()).collect(Collectors.toList()))
                     .append("\n");
         }
         return builder.toString();
@@ -47,40 +54,43 @@ public class Graph {
         for (int i = 0; i < getNodeCount(); i++) {
             HashMap<Integer, Integer> map = getWeightedNeighbors(i);
             List<Edge> neighbours = map.entrySet().stream()
-                    .map(entry -> new Edge(entry.getValue(), 50050 + entry.getKey()))
+                    .map(entry -> new Edge(entry.getValue(), entry.getKey()))
                     .collect(Collectors.toList());
-            nodes.add(new Node(i + 50050, neighbours));
+            nodes.add(new Node(i, neighbours, stop));
         }
         return nodes;
     }
 
-    public static void main(String[] args) throws InterruptedException {
-        final int[][] adjacencyMatrix = {
-                {0, 2, 6, 0, 0, 3},
-                {2, 0, 0, 0, 9, 0},
-                {6, 0, 0, 5, 0, 0},
-                {0, 0, 5, 0, 4, 0},
-                {0, 9, 0, 4, 0, 1},
-                {3, 0, 0, 0, 1, 0}
-        };
+    public static void main(String[] args) throws InterruptedException, IOException {
+        final int[][] adjacencyMatrix = ReadMatrix.readGraphFromFile("matrix6.txt");
 
         Graph graph = new Graph(adjacencyMatrix);
         System.out.println(graph);
 
-        for (Node node: graph.nodes) {
+        for (Node node : graph.nodes) {
+            System.out.println("NodeId "+node.getNodeId()+" with neighbours "+node.getEdges());
+        }
+
+        Stopwatch timer = Stopwatch.createStarted();
+
+        for (Node node : graph.nodes) {
             node.initialize();
         }
 
-        Thread.sleep(10000);
-
-        for (Node node: graph.nodes) {
+        for (Node node : graph.nodes) {
             node.wakeup();
         }
 
-        Thread.sleep(15000);
-
-        for (Node node: graph.nodes) {
-            if (node.isHalt()) node.finish();
+        while (stop.size() == 0) {
+            Thread.sleep(1000);
         }
+
+        System.out.println("Algorithm took: " + timer.stop());
+
+        for (Node node : graph.nodes) {
+            System.out.println(node.getPort() + " with branch edges = " + node.getBranchEdges());
+        }
+
+        System.exit(0);
     }
 }

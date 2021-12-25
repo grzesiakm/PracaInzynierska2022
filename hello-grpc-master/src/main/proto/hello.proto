@@ -29,7 +29,8 @@ message HelloReply {
 }
 
 message NodeMessage {
-  int32 from = 1;
+  int32 fromNodeId = 1;
+  int32 toNodeId = 2;
   enum TYPE {
     CONNECT = 0;
     INITIATE = 1;
@@ -39,15 +40,16 @@ message NodeMessage {
     REPORT = 5;
     CHANGE_CORE = 6;
   }
-  TYPE type = 2;
-  int32 lvl = 3;
+  TYPE type = 3;
+  int32 lvl = 4;
   enum NODE_STATE {
       SLEEPING = 0;
       FIND = 1;
       FOUND = 2;
   }
-  NODE_STATE nodeState = 4;
-  int32 weight = 5;
+  NODE_STATE nodeState = 5;
+  int32 weight = 6;
+  int32 fragmentId = 7;
 }
 
 message Ok {}
