@@ -84,17 +84,17 @@ public abstract class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
                 if (message == null)
                     continue;
 
-                OnMessageDequeued(message);
+                onMessageDequeued(message);
             }
         } catch (Throwable thrown) {
             logger.log(Level.WARNING, "processMessageQueue failed", thrown);
         }
     }
 
-    protected abstract void OnMessageDequeued(NodeMessage nodeMessage);
+    protected abstract void onMessageDequeued(NodeMessage nodeMessage);
 
     protected void sendMessage(NodeMessage nodeMessage) {
-        int port = mapToPort(nodeMessage);
+        int port = mapToPort(nodeMessage.getToNodeId());
         ManagedChannel channel = ManagedChannelBuilder
                 .forTarget(buildTarget(port))
                 .usePlaintext()
@@ -125,8 +125,8 @@ public abstract class Actor extends MessageHandlerGrpc.MessageHandlerImplBase {
         }
     }
 
-    private int mapToPort(NodeMessage nodeMessage) {
-        return nodeMessage.getToNodeId() + 50050;
+    protected int mapToPort(int nodeId) {
+        return nodeId + 50050;
     }
 
     protected String buildTarget(int port) {

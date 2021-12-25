@@ -1,6 +1,9 @@
 package primkruskal;
 
 
+import com.google.common.base.Stopwatch;
+import java.io.IOException;
+
 public class Kruskal {
     static int V = 6;
     static int[] parent = new int[V];
@@ -56,14 +59,17 @@ public class Kruskal {
         System.out.println("\nWeight of the minimum Spanning-tree " + minWeight);
     }
 
-    public static void main(String[] args) {
-        int[][] graph = {{0, 2, 6, 0, 0, 3},
-                {2, 0, 0, 0, 9, 0},
-                {6, 0, 0, 5, 0, 0},
-                {0, 0, 5, 0, 4, 0},
-                {0, 9, 0, 4, 0, 1},
-                {3, 0, 0, 0, 1, 0}};
+    public static void main(String[] args) throws IOException {
+        int[][] graph = ReadMatrix.readGraphFromFile("matrix6.txt");
+//                {{0, 2, 6, 0, 0, 3},
+//                {2, 0, 0, 0, 9, 0},
+//                {6, 0, 0, 5, 0, 0},
+//                {0, 0, 5, 0, 4, 0},
+//                {0, 9, 0, 4, 0, 1},
+//                {3, 0, 0, 0, 1, 0}};
 
+        Stopwatch timer = Stopwatch.createStarted();
         kruskalMST(graph);
+        System.out.println("Algorithm took: " + timer.stop());
     }
 }

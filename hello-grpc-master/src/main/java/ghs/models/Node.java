@@ -1,14 +1,10 @@
 package ghs.models;
 
-import generated.MessageHandlerGrpc;
 import generated.NodeMessage;
-import generated.Ok;
 import ghs.messaging.Actor;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 
 import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.BlockingQueue;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -22,11 +18,7 @@ public class Node extends Actor {
 
     private static final Logger logger = Logger.getLogger(Node.class.getName());
 
-    public int getNodeId() {
-        return nodeId;
-    }
-
-    private int nodeId;
+    private final int nodeId;
     private int fragmentId;
     private int fragmentLvl;
     private int bestWeight;
@@ -36,49 +28,32 @@ public class Node extends Actor {
     private Edge bestEdge;
     private Edge testEdge;
     private Edge inBranch;
-    private boolean halt;
-
-    public Edge getBestEdge() {
-        return bestEdge;
-    }
+    private int messageCount;
+    private final BlockingQueue<Boolean> stop;
 
     public List<Edge> getEdges() {
         return edges;
     }
 
-    public Node(int nodeId, List<Edge> edges) {
+    public int getNodeId() {
+        return nodeId;
+    }
+
+    public Node(int nodeId, List<Edge> edges, BlockingQueue<Boolean> stop) {
         super(50050 + nodeId);
         this.nodeId = nodeId;
         this.edges = edges;
-        this.halt = false;
+        this.messageCount = 0;
+        this.stop = stop;
 
-
-//        Edge minWeightEdge = edges.stream().min(Comparator.comparing(Edge::getWeight)).orElseThrow();
-//        this.edges.stream()
-//                    .filter(edge -> minWeightEdge.getToNodeId() == edge.getToNodeId())
-//                    .findAny().orElseThrow()
-//                    .setState(BRANCH);
-
-        fragmentId = nodeId;
+        fragmentId = this.nodeId;
         fragmentLvl = 0;
         nodeState = SLEEPING;
-//        nodeState = FOUND;
         bestWeight = Integer.MAX_VALUE;
         bestEdge = null;
         inBranch = null;
         testEdge = null;
         rec = 0;
-
-//        logger.info("Node " + this.nodeId + " woke up");
-
-//        NodeMessage connect = NodeMessage.newBuilder()
-//                .setFromNodeId(this.nodeId)
-//                .setToNodeId(minWeightEdge.getToNodeId())
-//                .setType(CONNECT)
-//                .setLvl(fragmentLvl)
-//                .build();
-//
-//        sendMessage(connect);
     }
 
     public List<Edge> getOtherBranchNeighbours(Edge neighbour) {
@@ -112,9 +87,10 @@ public class Node extends Actor {
                 .filter(edge -> minWeightEdge.getToNodeId() == edge.getToNodeId())
                 .findAny().orElseThrow()
                 .setState(BRANCH);
+
         nodeState = FOUND;
 
-        logger.info("Node " + this.nodeId + " woke up and it's minWeightEdge is " + minWeightEdge.getToNodeId());
+        logger.info("Node " + mapToPort(this.nodeId) + " woke up and it's minWeightEdge is connected to " + mapToPort(minWeightEdge.getToNodeId()));
 
         NodeMessage connect = NodeMessage.newBuilder()
                 .setFromNodeId(this.nodeId)
@@ -130,6 +106,7 @@ public class Node extends Actor {
         if (this.nodeState == SLEEPING){
             wakeup();
         }
+
         Edge messageEdge = getMessageEdge(nodeMessage);
 
         if (nodeMessage.getLvl() < fragmentLvl) {
@@ -146,7 +123,7 @@ public class Node extends Actor {
                     .setFragmentId(fragmentId)
                     .setNodeState(nodeState)
                     .build();
-
+            messageCount++;
             sendMessage(initiate);
         }
 
@@ -165,11 +142,11 @@ public class Node extends Actor {
                     .setFragmentId(messageEdge.getWeight())
                     .setNodeState(FIND)
                     .build();
-
+            messageCount++;
             sendMessage(initiate);
         }
 
-        logger.info("Node " + this.nodeId + " responded to CONNECT from " + nodeMessage.getFromNodeId());
+        logger.info("Node "+mapToPort(this.nodeId)+" responded to CONNECT from "+mapToPort(nodeMessage.getFromNodeId()));
     }
 
     private void respondToInitiate(NodeMessage nodeMessage) {
@@ -196,7 +173,7 @@ public class Node extends Actor {
                     .setFragmentId(fragmentId)
                     .setNodeState(nodeState)
                     .build();
-
+            messageCount++;
             sendMessage(initiate);
         }
 
@@ -205,7 +182,7 @@ public class Node extends Actor {
             testProcedure();
         }
 
-        logger.info("Node " + this.nodeId + " responded to INITIATE from " + nodeMessage.getFromNodeId());
+        logger.info("Node "+mapToPort(this.nodeId)+" responded to INITIATE from "+mapToPort(nodeMessage.getFromNodeId()));
     }
 
     public void testProcedure() {
@@ -229,7 +206,7 @@ public class Node extends Actor {
                     .setLvl(fragmentLvl)
                     .setFragmentId(fragmentId)
                     .build();
-
+            messageCount++;
             sendMessage(test);
         }
 
@@ -237,23 +214,15 @@ public class Node extends Actor {
             testEdge = null;
             reportProcedure();
         }
-
-//        List<Edge> basicNeighbours = getBasicNeighbours();
-//        if (basicNeighbours.isEmpty()) {
-//            this.testEdge = null;
-//            reportProcedure();
-//        } else {
-//            basicNeighbours.sort(Comparator.comparingInt(Edge::getWeight));
-//            this.testEdge = basicNeighbours.get(0);
-//            sendTest(this.testEdge, this.fragmentLvl, this.fragmentId);
-//        }
     }
 
     private void respondToTest(NodeMessage nodeMessage) {
         Edge messageEdge = getMessageEdge(nodeMessage);
+
         if (this.nodeState == SLEEPING){
             wakeup();
         }
+
         if (nodeMessage.getLvl() > fragmentLvl) {
             //add to the message queue as a last element
             enqueue(nodeMessage);
@@ -261,6 +230,7 @@ public class Node extends Actor {
 
         else if (nodeMessage.getFragmentId() == this.fragmentId) {
             if (messageEdge.getState() == BASIC) {
+                messageCount++;
                 this.edges.stream()
                         .filter(edge -> messageEdge.getToNodeId() == edge.getToNodeId())
                         .findAny().orElseThrow()
@@ -273,7 +243,7 @@ public class Node extends Actor {
                         .setToNodeId(messageEdge.getToNodeId())
                         .setType(REJECT)
                         .build();
-
+                messageCount++;
                 sendMessage(reject);
             }
 
@@ -288,11 +258,11 @@ public class Node extends Actor {
                     .setToNodeId(messageEdge.getToNodeId())
                     .setType(ACCEPT)
                     .build();
-
+            messageCount++;
             sendMessage(accept);
         }
 
-        logger.info("Node " + this.nodeId + " responded to TEST from " + nodeMessage.getFromNodeId());
+        logger.info("Node "+mapToPort(this.nodeId)+" responded to TEST from "+mapToPort(nodeMessage.getFromNodeId()));
     }
 
     private void respondToAccept(NodeMessage nodeMessage) {
@@ -306,7 +276,7 @@ public class Node extends Actor {
 
         reportProcedure();
 
-        logger.info("Node " + this.nodeId + " responded to ACCEPT from " + nodeMessage.getFromNodeId());
+        logger.info("Node "+mapToPort(this.nodeId)+" responded to ACCEPT from "+mapToPort(nodeMessage.getFromNodeId()));
     }
 
     private void respondToReject(NodeMessage nodeMessage) {
@@ -321,31 +291,24 @@ public class Node extends Actor {
 
         testProcedure();
 
-        logger.info("Node " + this.nodeId + " responded to REJECT from " + nodeMessage.getFromNodeId());
+        logger.info("Node "+mapToPort(this.nodeId)+" responded to REJECT from "+mapToPort(nodeMessage.getFromNodeId()));
     }
 
     public void reportProcedure() {
-        int size = 0;
-
-        for (Edge e : getOtherBranchNeighbours(inBranch)){
-            size++;
-        }
+        int size = getOtherBranchNeighbours(inBranch).size();
 
         if (rec == size && testEdge == null) {
             nodeState = FOUND;
+
             NodeMessage report = NodeMessage.newBuilder()
                     .setFromNodeId(this.nodeId)
                     .setToNodeId(inBranch.getToNodeId())
                     .setType(REPORT)
                     .setWeight(bestWeight)
                     .build();
-
+            messageCount++;
             sendMessage(report);
         }
-//        if (this.findCount == 0 && testEdge == null) {
-//            this.nodeState = FOUND;
-//            sendReport(this.inBranch, this.bestWeight);
-//        }
     }
 
     private void respondToReport(NodeMessage nodeMessage) {
@@ -372,27 +335,26 @@ public class Node extends Actor {
             }
 
             else if (nodeMessage.getWeight() == bestWeight && nodeMessage.getWeight() == Integer.MAX_VALUE) {
-                halt = true;
-                System.out.println("------------Algorithm STOPS--------------");
-                this.finish();
+                stop.add(true);
+                System.out.println("--------------Algorithm STOPS--------------");
             }
         }
 
-        logger.info("Node " + this.nodeId + " responded to REPORT from " + nodeMessage.getFromNodeId());
+        logger.info("Node "+mapToPort(this.nodeId)+" responded to REPORT from "+mapToPort(nodeMessage.getFromNodeId()));
     }
 
     private void changeCoreProcedure() {
-        if (bestEdge.getState() == BRANCH) {
+        if (bestEdge != null && bestEdge.getState() == BRANCH) {
             NodeMessage changeCore = NodeMessage.newBuilder()
                     .setFromNodeId(this.nodeId)
                     .setToNodeId(bestEdge.getToNodeId())
                     .setType(CHANGE_CORE)
                     .build();
-
+            messageCount++;
             sendMessage(changeCore);
         }
 
-        else {
+        else if (bestEdge != null){
             this.edges.stream()
                     .filter(edge -> this.bestEdge.getToNodeId() == edge.getToNodeId())
                     .findAny().orElseThrow()
@@ -404,41 +366,50 @@ public class Node extends Actor {
                     .setType(CONNECT)
                     .setLvl(fragmentLvl)
                     .build();
-
+            messageCount++;
             sendMessage(connect);
+        }
+
+        else {
+            System.out.println("bestEdge is null");
         }
     }
 
     private void respondToChangeCore(NodeMessage nodeMessage) {
         changeCoreProcedure();
 
-        logger.info("Node " + this.nodeId + " responded to CHANGE_CORE to " + nodeMessage.getFromNodeId());
+        logger.info("Node "+mapToPort(this.nodeId)+" responded to CHANGE_CORE to "+mapToPort(nodeMessage.getFromNodeId()));
     }
 
     @Override
-    protected void OnMessageDequeued(NodeMessage nodeMessage) {
-        switch (nodeMessage.getType()) {
-            case CONNECT:
-                respondToConnect(nodeMessage);
-                break;
-            case INITIATE:
-                respondToInitiate(nodeMessage);
-                break;
-            case TEST:
-                respondToTest(nodeMessage);
-                break;
-            case ACCEPT:
-                respondToAccept(nodeMessage);
-                break;
-            case REJECT:
-                respondToReject(nodeMessage);
-                break;
-            case REPORT:
-                respondToReport(nodeMessage);
-                break;
-            case CHANGE_CORE:
-                respondToChangeCore(nodeMessage);
-                break;
+    protected void onMessageDequeued(NodeMessage nodeMessage) {
+        if (stop.size() > 0) {
+            super.finish();
+        }
+        else {
+            switch (nodeMessage.getType()) {
+                case CONNECT:
+                    respondToConnect(nodeMessage);
+                    break;
+                case INITIATE:
+                    respondToInitiate(nodeMessage);
+                    break;
+                case TEST:
+                    respondToTest(nodeMessage);
+                    break;
+                case ACCEPT:
+                    respondToAccept(nodeMessage);
+                    break;
+                case REJECT:
+                    respondToReject(nodeMessage);
+                    break;
+                case REPORT:
+                    respondToReport(nodeMessage);
+                    break;
+                case CHANGE_CORE:
+                    respondToChangeCore(nodeMessage);
+                    break;
+            }
         }
     }
 }
