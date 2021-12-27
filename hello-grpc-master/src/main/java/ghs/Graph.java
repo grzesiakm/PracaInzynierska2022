@@ -3,7 +3,7 @@ package ghs;
 import com.google.common.base.Stopwatch;
 import ghs.models.Edge;
 import ghs.models.Node;
-import primkruskal.ReadMatrix;
+import files.ReadAdjacencyMatrix;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -62,13 +62,13 @@ public class Graph {
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
-        final int[][] adjacencyMatrix = ReadMatrix.readGraphFromFile("matrix6.txt");
+        final int[][] adjacencyMatrix = ReadAdjacencyMatrix.readGraphFromFile("matrix6.txt");
 
         Graph graph = new Graph(adjacencyMatrix);
         System.out.println(graph);
 
         for (Node node : graph.nodes) {
-            System.out.println("NodeId "+node.getNodeId()+" with neighbours "+node.getEdges());
+            System.out.println("NodeId " + node.getNodeId() + " with neighbours " + node.getEdges());
         }
 
         Stopwatch timer = Stopwatch.createStarted();
@@ -88,7 +88,7 @@ public class Graph {
         System.out.println("Algorithm took: " + timer.stop());
 
         for (Node node : graph.nodes) {
-            System.out.println(node.getPort() + " with branch edges = " + node.getBranchEdges());
+            System.out.println(node.getPort() + " with branch edges = " + node.getBranchEdges() + " found with " + node.getMessageCount() + " messages");
         }
 
         System.exit(0);

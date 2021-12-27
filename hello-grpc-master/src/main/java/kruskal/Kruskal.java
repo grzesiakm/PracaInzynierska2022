@@ -1,7 +1,9 @@
-package primkruskal;
+package kruskal;
 
 
 import com.google.common.base.Stopwatch;
+import files.ReadAdjacencyMatrix;
+
 import java.io.IOException;
 
 public class Kruskal {
@@ -60,7 +62,7 @@ public class Kruskal {
     }
 
     public static void main(String[] args) throws IOException {
-        int[][] graph = ReadMatrix.readGraphFromFile("matrix6.txt");
+        int[][] graph = ReadAdjacencyMatrix.readGraphFromFile("matrix6.txt");
 //                {{0, 2, 6, 0, 0, 3},
 //                {2, 0, 0, 0, 9, 0},
 //                {6, 0, 0, 5, 0, 0},

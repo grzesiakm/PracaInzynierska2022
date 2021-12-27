@@ -1,11 +1,11 @@
-package primkruskal;
+package files;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
 
-public class ReadMatrix {
+public class ReadAdjacencyMatrix {
 
     public static int[][] readGraphFromFile(String filename) throws IOException {
         BufferedReader buffer = new BufferedReader(new FileReader(filename));

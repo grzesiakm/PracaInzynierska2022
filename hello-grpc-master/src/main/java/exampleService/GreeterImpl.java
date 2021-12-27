@@ -1,4 +1,4 @@
-package services;
+package exampleService;
 
 import generated.GreeterGrpc;
 import generated.HelloReply;
