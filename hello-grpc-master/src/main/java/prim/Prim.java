@@ -3,14 +3,19 @@ package prim;
 
 import com.google.common.base.Stopwatch;
 import files.ReadAdjacencyMatrix;
+import files.ReadEdgeList;
 
 import java.io.IOException;
 
 class Prim {
-    public static int V = 6;
+    private final int V;
+
+    public Prim(int v) {
+        V = v;
+    }
 
     //Find index of min-weight node from set of unvisited nodes
-    static int findMinNode(boolean[] visited, int[] weights) {
+    public int findMinNode(boolean[] visited, int[] weights) {
         int index = -1; //index of min-weight node
         int minWeight = Integer.MAX_VALUE;
 
@@ -23,16 +28,16 @@ class Prim {
         return index;
     }
 
-    static void printMinimumSpanningTree(int[][] graph, int[] parent) {
+    public void printMinimumSpanningTree(int[][] graph, int[] parent) {
         int MST = 0; //total weight of mst
 
         for (int i = 1; i < V; i++) {
             MST += graph[i][parent[i]];
         }
 
-        System.out.println("Edges \tWeight");
+        System.out.println("Edges \t\tWeight");
         for (int i = 1; i < V; i++)
-            System.out.println(parent[i] + " - " + i + " \t" + graph[i][parent[i]]);
+            System.out.println(parent[i] + " - " + i + " \t\t" + graph[i][parent[i]]);
 
         System.out.println("\nWeight of the minimum Spanning-tree " + MST);
     }
@@ -49,7 +54,7 @@ class Prim {
            For every adjacent vertex v, if weight of edge u-v is less than the previous key value of v,
            update the key value as weight of u-v.
     */
-    static void primMST(int[][] graph) {
+    public void calculateMST(int[][] graph) {
         boolean[] isVisited = new boolean[V]; //Table with information if the node is isVisited or not
         int[] weights = new int[V]; //Table of minimum weight of graph to connect an edge with the current node
         int[] parent = new int[V]; //Table with the parent node of the current
@@ -87,16 +92,17 @@ class Prim {
     }
 
     public static void main(String[] args) throws IOException {
-        int[][] graph = ReadAdjacencyMatrix.readGraphFromFile("matrix6.txt");
-//                {{0, 2, 6, 0, 0, 3},
-//                {2, 0, 0, 0, 9, 0},
-//                {6, 0, 0, 5, 0, 0},
-//                {0, 0, 5, 0, 4, 0},
-//                {0, 9, 0, 4, 0, 1},
-//                {3, 0, 0, 0, 1, 0}};
+//        Prim prim = new Prim(6);
+//        int[][] graph = ReadAdjacencyMatrix.readMatrixFromFile("matrix6.txt");
+
+//        Prim prim = new Prim(10);
+//        int[][] graph = ReadEdgeList.readEdgesFromFile("edgesMatrix10.txt");
+
+        Prim prim = new Prim(12);
+        int[][] graph = ReadEdgeList.readEdgesFromFile("edgesMatrix12.txt");
 
         Stopwatch timer = Stopwatch.createStarted();
-        primMST(graph);
+        prim.calculateMST(graph);
         System.out.println("Algorithm took: " + timer.stop());
     }
 }

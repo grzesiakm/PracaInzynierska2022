@@ -1,6 +1,7 @@
 package ghs;
 
 import com.google.common.base.Stopwatch;
+import files.ReadEdgeList;
 import ghs.models.Edge;
 import ghs.models.Node;
 import files.ReadAdjacencyMatrix;
@@ -62,7 +63,8 @@ public class Graph {
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
-        final int[][] adjacencyMatrix = ReadAdjacencyMatrix.readGraphFromFile("matrix6.txt");
+        final int[][] adjacencyMatrix = ReadAdjacencyMatrix.readMatrixFromFile("matrix6.txt");
+//        final int[][] adjacencyMatrix = ReadEdgeList.readEdgesFromFile("edgesMatrix12.txt");
 
         Graph graph = new Graph(adjacencyMatrix);
         System.out.println(graph);
