@@ -2,8 +2,7 @@ package prim;
 
 
 import com.google.common.base.Stopwatch;
-import files.ReadAdjacencyMatrix;
-import files.ReadEdgeList;
+import files.ReadEdgesConvertToMatrix;
 
 import java.io.IOException;
 
@@ -95,11 +94,14 @@ class Prim {
 //        Prim prim = new Prim(6);
 //        int[][] graph = ReadAdjacencyMatrix.readMatrixFromFile("matrix6.txt");
 
+//        Prim prim = new Prim(8);
+//        int[][] graph = ReadEdgesConvertToMatrix.readEdgesFromFile("edgesMatrix8.txt");
+
 //        Prim prim = new Prim(10);
-//        int[][] graph = ReadEdgeList.readEdgesFromFile("edgesMatrix10.txt");
+//        int[][] graph = ReadEdgesConvertToMatrix.readEdgesFromFile("edgesMatrix10.txt");
 
         Prim prim = new Prim(12);
-        int[][] graph = ReadEdgeList.readEdgesFromFile("edgesMatrix12.txt");
+        int[][] graph = ReadEdgesConvertToMatrix.readEdgesFromFile("edgesMatrix12.txt");
 
         Stopwatch timer = Stopwatch.createStarted();
         prim.calculateMST(graph);

@@ -2,8 +2,7 @@ package kruskal;
 
 
 import com.google.common.base.Stopwatch;
-import files.ReadAdjacencyMatrix;
-import files.ReadEdgeList;
+import files.ReadEdgesConvertToMatrix;
 
 import java.io.IOException;
 
@@ -71,15 +70,17 @@ public class Kruskal {
 //        Kruskal kruskal = new Kruskal(6);
 //        int[][] graph = ReadAdjacencyMatrix.readMatrixFromFile("matrix6.txt");
 
+//        Kruskal kruskal = new Kruskal(8);
+//        int[][] graph = ReadEdgesConvertToMatrix.readEdgesFromFile("edgesMatrix8.txt");
+
 //        Kruskal kruskal = new Kruskal(10);
-//        int[][] graph = ReadEdgeList.readEdgesFromFile("edgesMatrix10.txt");
+//        int[][] graph = ReadEdgesConvertToMatrix.readEdgesFromFile("edgesMatrix10.txt");
 
         Kruskal kruskal = new Kruskal(12);
-        int[][] graph = ReadEdgeList.readEdgesFromFile("edgesMatrix12.txt");
+        int[][] graph = ReadEdgesConvertToMatrix.readEdgesFromFile("edgesMatrix12.txt");
 
 
         Stopwatch timer = Stopwatch.createStarted();
-        //Remember to change number of nodes (V field) in Kruskal class --> line 11
         kruskal.calculateMST(graph);
         System.out.println("Algorithm took: " + timer.stop());
     }
