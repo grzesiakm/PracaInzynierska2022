@@ -9,11 +9,8 @@ public class Edge {
 
     @Override
     public String toString() {
-        return "Edge{" +
-                "weight=" + weight +
-                ", toNodeId=" + toNodeId +
-                ", state=" + state +
-                '}';
+        return "to node " + toNodeId +
+                " with weight = " + weight;
     }
 
     public Edge(int weight, int toNodeId) {

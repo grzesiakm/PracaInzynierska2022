@@ -2,7 +2,7 @@ package examples;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import services.GreeterImpl;
+import exampleService.GreeterImpl;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
