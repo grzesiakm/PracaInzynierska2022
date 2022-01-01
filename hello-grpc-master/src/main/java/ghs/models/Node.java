@@ -155,7 +155,7 @@ public class Node extends Actor {
                 .findAny().orElseThrow();
     }
 
-    public void wakeup() {
+    public void wakeUp() {
 
         Edge minWeightEdge = edges.stream().min(Comparator.comparing(Edge::getWeight)).orElseThrow();
         this.edges.stream()
