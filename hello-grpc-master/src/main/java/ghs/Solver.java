@@ -10,6 +10,6 @@ public class Solver {
          * First argument is filename with input list of edges or adjacency matrix
          * Second one can be 'edges' or 'matrix' (as default is set matrix with 6 nodes)
          */
-        Graph.calculateMST("edgesMatrix8.txt", "edges");
+        Graph.calculateMST("test8.txt", "edges");
     }
 }

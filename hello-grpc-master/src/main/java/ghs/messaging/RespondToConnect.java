@@ -14,7 +14,7 @@ public class RespondToConnect implements ResponseHandler {
 
     public static void respond(Node node, NodeMessage nodeMessage) {
         if (node.getNodeState() == SLEEPING) {
-            node.wakeup();
+            node.wakeUp();
         }
 
         Edge messageEdge = node.getMessageEdge(nodeMessage);

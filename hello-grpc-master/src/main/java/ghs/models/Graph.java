@@ -90,7 +90,7 @@ public class Graph {
         }
 
         for (Node node : graph.nodes) {
-            node.wakeup();
+            node.wakeUp();
         }
 
         while (stop.size() == 0) {

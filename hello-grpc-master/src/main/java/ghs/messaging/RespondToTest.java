@@ -16,7 +16,7 @@ public class RespondToTest implements ResponseHandler {
         Edge messageEdge = node.getMessageEdge(nodeMessage);
 
         if (node.getNodeState() == SLEEPING) {
-            node.wakeup();
+            node.wakeUp();
         }
 
         if (nodeMessage.getLvl() > node.getFragmentLvl()) {
